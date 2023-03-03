@@ -2294,10 +2294,12 @@ checksum = "0046fef7e28c3804e5e38bfa31ea2a0f73905319b677e57ebe37e49358989b5d"
 name = "wbstatus"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "async-std",
  "futures",
  "reqwest",
  "serde",
+ "serde_json",
  "tide",
  "tokio",
 ]
