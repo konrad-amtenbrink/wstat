@@ -1,19 +1,7 @@
 use tide::Request;
-use std::collections::HashMap;
-use serde::Deserialize;
-use serde_json::Value;
 use anyhow::Result;
+use chrono::{Datelike, Utc, Duration, DateTime};
 
-#[derive(Debug, Deserialize)]
-struct Weather {
-    latitude: String,
-    longitude: String
-}
-
-#[derive(Deserialize, Debug)]
-struct JSONResponse {
-    json: HashMap<String, String>,
-}
 
 #[async_std::main]
 async fn main() -> tide::Result<()> {
@@ -24,19 +12,25 @@ async fn main() -> tide::Result<()> {
 }
 
 async fn get_status(_req: Request<()>) -> tide::Result {
-    let resp: bool = get_weather()?;
-    Ok(format!("{resp}", resp = resp).into())
+    let neg_temp: bool = get_weather()?;
+    if neg_temp {
+        Ok(format!("Unfortunately, it is not safe to ride a motorcycle today").into())
+    } else {
+        Ok(format!("Fortunately, it is safe to ride a motorcycle today").into())
+    }
 }
 
 #[tokio::main]
 async fn get_weather() -> Result<bool, anyhow::Error> {
-    let request_url = format!("https://archive-api.open-meteo.com/v1/archive?{latitude}&{longitude}&{daily}&{start}&{end}&{timezone}",
+    let (end, start): (String, String) = get_dates();
+
+    let request_url = format!("https://api.open-meteo.com/v1/forecast?{latitude}&{longitude}&{daily}&start_date={start}&end_date={end}&{timezone}",
                           latitude = "latitude=52.52",
                           longitude = "longitude=13.41",
                           daily = "daily=temperature_2m_min",
-                          start = "start_date=2023-01-01",
-                          end = "end_date=2023-01-08",
-                          timezone = "timezone=GMT-0");
+                          start = start,
+                          end = end,
+                          timezone = "timezone=Europe%2FBerlin");
 
     let response = reqwest::get(&request_url).await?.json::<serde_json::Value>().await?;
 
@@ -48,6 +42,18 @@ async fn get_weather() -> Result<bool, anyhow::Error> {
             break;
         }
     }
-
     Ok(negative_temperature)
+}
+
+fn get_dates() -> (String, String) {
+    let now = Utc::now();
+    let last_week = now - Duration::days(7);
+    (to_iso_format(now), to_iso_format(last_week))
+    
+}
+
+
+fn to_iso_format(date: DateTime<Utc>) -> String {
+    let (_is_common_era, year) = date.year_ce();
+    return format!("{}-{:02}-{:02}", year, date.month(), date.day());
 }
